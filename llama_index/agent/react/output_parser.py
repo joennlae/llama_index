@@ -6,6 +6,7 @@ import re
 from typing import Tuple
 
 from llama_index.agent.react.types import (
+    Action,
     ActionReasoningStep,
     BaseReasoningStep,
     ResponseReasoningStep,
@@ -54,7 +55,8 @@ class ReActOutputParser(BaseOutputParser):
     """ReAct Output parser."""
 
     def parse(self, output: str, is_streaming: bool = False) -> BaseReasoningStep:
-        """Parse output from ReAct agent.
+        """
+        Parse output from ReAct agent.
 
         We expect the output to be in one of the following formats:
         1. If the agent need to use a tool to answer the question:
@@ -69,6 +71,37 @@ class ReActOutputParser(BaseOutputParser):
             Answer: <answer>
             ```
         """
+        if "Tool calls:" in output:
+            print("checking for tools")
+            output_to_test = output.replace(r"\_", "_")
+            tool_calls = []
+            function_token = "!functioncall"
+            regex_tool = rf'(?<={function_token}\[")[^":]+'
+            hits_tools = re.findall(regex_tool, output_to_test)
+            hits_questions = []
+            print("hits_tools", hits_tools)
+            for tool in hits_tools:
+                regex_question = rf'(?<={function_token}\["{tool}": ")[^"]+'
+                hits_question = re.findall(regex_question, output_to_test)
+                hits_questions += hits_question
+            if len(hits_tools) == len(hits_questions):
+                for i in range(len(hits_tools)):
+                    tool = hits_tools[i]
+                    question = hits_questions[i]
+                    print("tool added", tool, question)
+                    tool_calls.append((tool, question))
+            if len(hits_tools) != len(hits_questions):
+                raise ValueError("number of tools and questions do not match")
+            actions = []
+            if len(tool_calls) > 0:
+                for tool_call in tool_calls:
+                    new_action = Action(
+                        thought=f"Calling data repository {tool_call[0]}",
+                        action=tool_call[0],
+                        action_input={"input": tool_call[1]},
+                    )
+                    actions.append(new_action)
+                return ActionReasoningStep(actions=actions)
         if "Thought:" not in output:
             # NOTE: handle the case where the agent directly outputs the answer
             # instead of following the thought-answer format

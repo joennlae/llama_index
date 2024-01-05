@@ -19,19 +19,28 @@ class BaseReasoningStep(BaseModel):
         """Is the reasoning step the last one."""
 
 
-class ActionReasoningStep(BaseReasoningStep):
-    """Action Reasoning step."""
+class Action(BaseModel):
+    """Action."""
 
     thought: str
     action: str
     action_input: Dict
 
+
+class ActionReasoningStep(BaseReasoningStep):
+    """Action Reasoning step."""
+
+    actions: list[Action]
+
     def get_content(self) -> str:
         """Get content."""
-        return (
-            f"Thought: {self.thought}\nAction: {self.action}\n"
-            f"Action Input: {self.action_input}"
-        )
+        output = ""
+        for action in self.actions:
+            output += (
+                f"Thought: {action.thought}\nAction: {action.action}\n"
+                f"Action Input: {action.action_input}\n"
+            )
+        return output
 
     @property
     def is_done(self) -> bool:
