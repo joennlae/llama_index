@@ -117,7 +117,8 @@ class ReActAgentWorker(BaseAgentWorker):
         verbose: bool = False,
         **kwargs: Any,
     ) -> "ReActAgentWorker":
-        """Convenience constructor method from set of of BaseTools (Optional).
+        """
+        Convenience constructor method from set of of BaseTools (Optional).
 
         NOTE: kwargs should have been exhausted by this point. In other words
         the various upstream components such as BaseSynthesizer (response synthesizer)
@@ -199,6 +200,24 @@ class ReActAgentWorker(BaseAgentWorker):
 
         return message_content, current_reasoning, False
 
+    def _call_function(
+        self,
+        tool: AsyncBaseTool,
+        function_input: Dict[str, Any],
+    ) -> Any:
+        """Call function."""
+        with self.callback_manager.event(
+            CBEventType.FUNCTION_CALL,
+            payload={
+                EventPayload.FUNCTION_CALL: function_input,
+                EventPayload.TOOL: tool.metadata,
+            },
+        ) as event:
+            tool_output = tool.call(**function_input)
+            event.on_end(payload={EventPayload.FUNCTION_OUTPUT: str(tool_output)})
+        # tool_output = tool(**function_input)
+        return tool_output
+
     def _process_actions(
         self,
         task: Task,
@@ -218,23 +237,22 @@ class ReActAgentWorker(BaseAgentWorker):
 
         # call tool with input
         reasoning_step = cast(ActionReasoningStep, current_reasoning[-1])
-        tool = tools_dict[reasoning_step.action]
-        with self.callback_manager.event(
-            CBEventType.FUNCTION_CALL,
-            payload={
-                EventPayload.FUNCTION_CALL: reasoning_step.action_input,
-                EventPayload.TOOL: tool.metadata,
-            },
-        ) as event:
-            tool_output = tool.call(**reasoning_step.action_input)
-            event.on_end(payload={EventPayload.FUNCTION_OUTPUT: str(tool_output)})
+        total_observation_output = ""
+        print("reasoning_step.actions", reasoning_step.actions)
+        for action in reasoning_step.actions:
+            tool = tools_dict[action.action]
+            tool_output = self._call_function(tool, action.action_input)
 
-        task.extra_state["sources"].append(tool_output)
+            total_observation_output += f'\nObservation of "{action.action}":\n {str(tool_output)} \n\n'  # noqa: RUF010
+            task.extra_state["sources"].append(tool_output)
+        observation_step = ObservationReasoningStep(
+            observation=str(total_observation_output)
+        )
 
-        observation_step = ObservationReasoningStep(observation=str(tool_output))
-        current_reasoning.append(observation_step)
         if self._verbose:
             print_text(f"{observation_step.get_content()}\n", color="blue")
+        current_reasoning.append(observation_step)
+
         return current_reasoning, False
 
     async def _aprocess_actions(
@@ -316,7 +334,8 @@ class ReActAgentWorker(BaseAgentWorker):
         )
 
     def _infer_stream_chunk_is_final(self, chunk: ChatResponse) -> bool:
-        """Infers if a chunk from a live stream is the start of the final
+        """
+        Infers if a chunk from a live stream is the start of the final
         reasoning step. (i.e., and should eventually become
         ResponseReasoningStep — not part of this function's logic tho.).
 
@@ -340,7 +359,8 @@ class ReActAgentWorker(BaseAgentWorker):
     def _add_back_chunk_to_stream(
         self, chunk: ChatResponse, chat_stream: Generator[ChatResponse, None, None]
     ) -> Generator[ChatResponse, None, None]:
-        """Helper method for adding back initial chunk stream of final response
+        """
+        Helper method for adding back initial chunk stream of final response
         back to the rest of the chat_stream.
 
         Args:
@@ -365,7 +385,8 @@ class ReActAgentWorker(BaseAgentWorker):
     async def _async_add_back_chunk_to_stream(
         self, chunk: ChatResponse, chat_stream: AsyncGenerator[ChatResponse, None]
     ) -> AsyncGenerator[ChatResponse, None]:
-        """Helper method for adding back initial chunk stream of final response
+        """
+        Helper method for adding back initial chunk stream of final response
         back to the rest of the chat_stream.
 
         NOTE: this itself is not an async function.
