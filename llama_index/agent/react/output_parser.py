@@ -72,31 +72,27 @@ class ReActOutputParser(BaseOutputParser):
             ```
         """
         if "Tool calls:" in output:
-            print("checking for tools")
-            output_to_test = output.replace(r"\_", "_")
             tool_calls = []
             function_token = "!functioncall"
             regex_tool = rf'(?<={function_token}\[")[^":]+'
-            hits_tools = re.findall(regex_tool, output_to_test)
-            hits_questions = []
-            print("hits_tools", hits_tools)
+            hits_tools = re.findall(regex_tool, output)
+            number_of_tool_hits = len(hits_tools)
+            hits_tools = list(set(hits_tools))
+            number_of_question_hits = 0
+            tool_calls = []
             for tool in hits_tools:
                 regex_question = rf'(?<={function_token}\["{tool}": ")[^"]+'
-                hits_question = re.findall(regex_question, output_to_test)
-                hits_questions += hits_question
-            if len(hits_tools) == len(hits_questions):
-                for i in range(len(hits_tools)):
-                    tool = hits_tools[i]
-                    question = hits_questions[i]
-                    print("tool added", tool, question)
+                hits_question = re.findall(regex_question, output)
+                for question in hits_question:
                     tool_calls.append((tool, question))
-            if len(hits_tools) != len(hits_questions):
+                number_of_question_hits += len(hits_question)
+            if number_of_tool_hits != number_of_question_hits:
                 raise ValueError("number of tools and questions do not match")
             actions = []
             if len(tool_calls) > 0:
                 for tool_call in tool_calls:
                     new_action = Action(
-                        thought=f"Calling data repository {tool_call[0]}",
+                        thought=f'Calling tool "{tool_call[0]}"',
                         action=tool_call[0],
                         action_input={"input": tool_call[1]},
                     )
