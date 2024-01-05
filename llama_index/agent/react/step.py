@@ -1,6 +1,6 @@
 """ReAct agent worker."""
-
 import asyncio
+import logging
 import uuid
 from itertools import chain
 from threading import Thread
@@ -51,6 +51,8 @@ from llama_index.objects.base import ObjectRetriever
 from llama_index.tools import BaseTool, ToolOutput, adapt_to_async_tool
 from llama_index.tools.types import AsyncBaseTool
 from llama_index.utils import print_text, unit_generator
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL_NAME = "gpt-3.5-turbo-0613"
 
@@ -243,7 +245,14 @@ class ReActAgentWorker(BaseAgentWorker):
             tool = tools_dict[action.action]
             tool_output = self._call_function(tool, action.action_input)
 
-            total_observation_output += f'\nObservation of "{action.action}":\n {str(tool_output)} \n\n'  # noqa: RUF010
+            total_observation_output += f"""
+
+Context information for observation of "{action.action}":
+---------------------
+{tool_output!s}
+---------------------
+
+"""
             task.extra_state["sources"].append(tool_output)
         observation_step = ObservationReasoningStep(
             observation=str(total_observation_output)
@@ -254,6 +263,23 @@ class ReActAgentWorker(BaseAgentWorker):
         current_reasoning.append(observation_step)
 
         return current_reasoning, False
+
+    async def _acall_function(
+        self,
+        tool: AsyncBaseTool,
+        function_input: Dict[str, Any],
+    ) -> Any:
+        """Call function."""
+        with self.callback_manager.event(
+            CBEventType.FUNCTION_CALL,
+            payload={
+                EventPayload.FUNCTION_CALL: function_input,
+                EventPayload.TOOL: tool.metadata,
+            },
+        ) as event:
+            tool_output = await tool.acall(**function_input)
+            event.on_end(payload={EventPayload.FUNCTION_OUTPUT: str(tool_output)})
+        return tool_output
 
     async def _aprocess_actions(
         self,
@@ -272,23 +298,34 @@ class ReActAgentWorker(BaseAgentWorker):
 
         # call tool with input
         reasoning_step = cast(ActionReasoningStep, current_reasoning[-1])
-        tool = tools_dict[reasoning_step.action]
-        with self.callback_manager.event(
-            CBEventType.FUNCTION_CALL,
-            payload={
-                EventPayload.FUNCTION_CALL: reasoning_step.action_input,
-                EventPayload.TOOL: tool.metadata,
-            },
-        ) as event:
-            tool_output = await tool.acall(**reasoning_step.action_input)
-            event.on_end(payload={EventPayload.FUNCTION_OUTPUT: str(tool_output)})
+        total_observation_output = ""
+        print("reasoning_step.actions", reasoning_step.actions)
+        print("tools_dict", tools_dict)
+        for action in reasoning_step.actions:
+            if action.action not in tools_dict:
+                logger.info(
+                    "Tool does not exist in tool list: %s --> skipping", action.action
+                )
+            tool = tools_dict[action.action]
+            tool_output = await self._acall_function(tool, action.action_input)
 
-        task.extra_state["sources"].append(tool_output)
+            total_observation_output += f"""
 
-        observation_step = ObservationReasoningStep(observation=str(tool_output))
-        current_reasoning.append(observation_step)
+Context information for observation of "{action.action}":
+---------------------
+{tool_output!s}
+---------------------
+
+"""
+            task.extra_state["sources"].append(tool_output)
+        observation_step = ObservationReasoningStep(
+            observation=str(total_observation_output)
+        )
+
         if self._verbose:
             print_text(f"{observation_step.get_content()}\n", color="blue")
+        current_reasoning.append(observation_step)
+
         return current_reasoning, False
 
     def _get_response(
