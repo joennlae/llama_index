@@ -37,8 +37,8 @@ class ActionReasoningStep(BaseReasoningStep):
         output = ""
         for action in self.actions:
             output += (
-                f"Thought: {action.thought}\nAction: {action.action}\n"
-                f"Action Input: {action.action_input}\n"
+                f"Gedanke: {action.thought}\nAktion: {action.action}\n"
+                f"Aktion Input: {action.action_input}\n"
             )
         return output
 
@@ -55,7 +55,7 @@ class ObservationReasoningStep(BaseReasoningStep):
 
     def get_content(self) -> str:
         """Get content."""
-        return f"Observation: {self.observation}"
+        return f"Beobachtungen: {self.observation}"
 
     @property
     def is_done(self) -> bool:
@@ -78,7 +78,7 @@ class ResponseReasoningStep(BaseReasoningStep):
                 f"Response (Starts With): {self.response} ..."
             )
         else:
-            return f"Thought: {self.thought}\n" f"Response: {self.response}"
+            return f"Gedanke: {self.thought}\n" f"Antwort: {self.response}"
 
     @property
     def is_done(self) -> bool:

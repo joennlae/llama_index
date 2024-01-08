@@ -1,7 +1,6 @@
 """ReAct output parser."""
 
 
-import json
 import re
 from typing import Tuple
 
@@ -11,7 +10,6 @@ from llama_index.agent.react.types import (
     BaseReasoningStep,
     ResponseReasoningStep,
 )
-from llama_index.output_parsers.utils import extract_json_str
 from llama_index.types import BaseOutputParser
 
 
@@ -38,7 +36,7 @@ def action_input_parser(json_str: str) -> dict:
 
 
 def extract_final_response(input_text: str) -> Tuple[str, str]:
-    pattern = r"\s*Thought:(.*?)Answer:(.*?)(?:$)"
+    pattern = r"\s*Gedanke:(.*?)Antwort:(.*?)(?:$)"
 
     match = re.search(pattern, input_text, re.DOTALL)
     if not match:
@@ -71,7 +69,7 @@ class ReActOutputParser(BaseOutputParser):
             Answer: <answer>
             ```
         """
-        if "Tool calls:" in output:
+        if "Werkzeugaufrufe:" in output:
             tool_calls = []
             function_token = "!functioncall"
             regex_tool = rf'(?<={function_token}\[")[^":]+'
@@ -98,33 +96,19 @@ class ReActOutputParser(BaseOutputParser):
                     )
                     actions.append(new_action)
                 return ActionReasoningStep(actions=actions)
-        if "Thought:" not in output:
+        if "Gedanke:" not in output:
             # NOTE: handle the case where the agent directly outputs the answer
             # instead of following the thought-answer format
             return ResponseReasoningStep(
-                thought="(Implicit) I can answer without any more tools!",
+                thought="(Implizit) Ich kann die Frage beantworten.",
                 response=output,
                 is_streaming=is_streaming,
             )
 
-        if "Answer:" in output:
+        if "Antwort:" in output:
             thought, answer = extract_final_response(output)
             return ResponseReasoningStep(
                 thought=thought, response=answer, is_streaming=is_streaming
-            )
-
-        if "Action:" in output:
-            thought, action, action_input = extract_tool_use(output)
-            json_str = extract_json_str(action_input)
-
-            # First we try json, if this fails we use ast
-            try:
-                action_input_dict = json.loads(json_str)
-            except json.JSONDecodeError:
-                action_input_dict = action_input_parser(json_str)
-
-            return ActionReasoningStep(
-                thought=thought, action=action, action_input=action_input_dict
             )
 
         raise ValueError(f"Could not parse output: {output}")
