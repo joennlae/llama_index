@@ -247,7 +247,7 @@ class ReActAgentWorker(BaseAgentWorker):
 
             total_observation_output += f"""
 
-Context information for observation of "{action.action}":
+Kontextinformationen für die Beobachtung von "{action.action}":
 ---------------------
 {tool_output!s}
 ---------------------
@@ -311,7 +311,7 @@ Context information for observation of "{action.action}":
 
             total_observation_output += f"""
 
-Context information for observation of "{action.action}":
+Kontextinformationen für die Beobachtung von "{action.action}":
 ---------------------
 {tool_output!s}
 ---------------------
