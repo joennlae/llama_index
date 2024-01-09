@@ -384,12 +384,15 @@ Kontextinformationen für die Beobachtung von "{action.action}":
         """
         latest_content = chunk.message.content
         if latest_content:
-            if not latest_content.startswith(
-                "Thought"
-            ):  # doesn't follow thought-action format
-                return True
+            if len(latest_content) > 100:
+                if (
+                    ("Gedanke: " not in latest_content[:100])
+                    and ("Beobachtungen: " not in latest_content[:100])
+                    and ("Werkzeugaufrufe: " not in latest_content[:100])
+                ):
+                    return True
             else:
-                if "Answer: " in latest_content:
+                if "Antwort: " in latest_content:
                     return True
         return False
 
