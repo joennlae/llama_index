@@ -74,8 +74,8 @@ class ResponseReasoningStep(BaseReasoningStep):
         """Get content."""
         if self.is_streaming:
             return (
-                f"Thought: {self.thought}\n"
-                f"Response (Starts With): {self.response} ..."
+                f"Gedanke: {self.thought}\n"
+                f"Antwort (beginnt mit): {self.response} ..."
             )
         else:
             return f"Gedanke: {self.thought}\n" f"Antwort: {self.response}"
