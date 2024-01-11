@@ -71,15 +71,15 @@ class ReActOutputParser(BaseOutputParser):
         """
         if "Werkzeugaufrufe:" in output:
             tool_calls = []
-            function_token = "!functioncall"
-            regex_tool = rf'(?<={function_token}\[")[^":]+'
+            function_token = "!func"
+            regex_tool = rf'(?<={function_token}{{")[^":]+'
             hits_tools = re.findall(regex_tool, output)
             number_of_tool_hits = len(hits_tools)
             hits_tools = list(set(hits_tools))
             number_of_question_hits = 0
             tool_calls = []
             for tool in hits_tools:
-                regex_question = rf'(?<={function_token}\["{tool}": ")[^"]+'
+                regex_question = rf'(?<={function_token}{{"{tool}": ")[^"]+'
                 hits_question = re.findall(regex_question, output)
                 for question in hits_question:
                     tool_calls.append((tool, question))
