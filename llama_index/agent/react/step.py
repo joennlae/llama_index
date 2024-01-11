@@ -384,11 +384,11 @@ Kontextinformationen für die Beobachtung von "{action.action}":
         """
         latest_content = chunk.message.content
         if latest_content:
-            if len(latest_content) > 100:
+            if len(latest_content) > 250:
                 if (
-                    ("Gedanke: " not in latest_content[:100])
-                    and ("Beobachtungen: " not in latest_content[:100])
-                    and ("Werkzeugaufrufe: " not in latest_content[:100])
+                    ("Gedanke: " not in latest_content[:250])
+                    and ("Beobachtungen: " not in latest_content[:250])
+                    and ("Werkzeugaufrufe: " not in latest_content[:250])
                 ):
                     return True
             else:
