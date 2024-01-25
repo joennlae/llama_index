@@ -1,6 +1,7 @@
 import asyncio
 from threading import Thread
 from typing import Any, List, Optional, Tuple
+import logging
 
 from llama_index.callbacks import CallbackManager, trace_method
 from llama_index.chat_engine.types import (
@@ -16,6 +17,8 @@ from llama_index.memory import BaseMemory, ChatMemoryBuffer
 from llama_index.postprocessor.types import BaseNodePostprocessor
 from llama_index.schema import MetadataMode, NodeWithScore, QueryBundle
 from llama_index.service_context import ServiceContext
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONTEXT_TEMPLATE = (
     "Context information is below."
@@ -138,7 +141,7 @@ class ContextChatEngine(BaseChatEngine):
 
         context_str_w_sys_prompt = system_prompt.strip() + "\n" + context_str
         return [
-            ChatMessage(content=context_str_w_sys_prompt, role=MessageRole.SYSTEM),
+            ChatMessage(content=context_str_w_sys_prompt, role=MessageRole.USER),
             *prefix_messages,
         ]
 
@@ -192,9 +195,22 @@ class ContextChatEngine(BaseChatEngine):
                 " ".join([(m.content or "") for m in prefix_messages])
             )
         )
+        print("prefix_messages", prefix_messages)
+        print("memory", self._memory.get(initial_token_count=initial_token_count))
         all_messages = prefix_messages + self._memory.get(
             initial_token_count=initial_token_count
         )
+
+        if len(all_messages) > 0:
+            if all_messages[0].role == MessageRole.USER and all_messages[1].role == MessageRole.USER:
+                new_fused_message = ChatMessage(
+                    content=all_messages[0].content + "\n\n" + all_messages[1].content,
+                    role=MessageRole.USER,
+                )
+                all_messages = [new_fused_message] + all_messages[2:]
+
+        logger.info("all_messages: %s", all_messages)
+        # fuse system with user message
 
         chat_response = StreamingAgentChatResponse(
             chat_stream=self._llm.stream_chat(all_messages),
