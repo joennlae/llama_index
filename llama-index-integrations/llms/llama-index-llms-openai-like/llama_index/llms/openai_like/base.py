@@ -1,6 +1,7 @@
 from typing import Any, Optional, Sequence, Union
 
 from llama_index.core.base.llms.types import (
+    MessageRole,
     ChatMessage,
     ChatResponse,
     ChatResponseAsyncGen,
@@ -57,6 +58,12 @@ class OpenAILike(OpenAI):
             " disables inference of max_tokens."
         ),
     )
+    system_role: MessageRole = Field(
+        default=MessageRole.SYSTEM,
+        description=LLMMetadata.__fields__[
+            "system_role"
+        ].field_info.description,
+    )
 
     @property
     def metadata(self) -> LLMMetadata:
@@ -66,6 +73,7 @@ class OpenAILike(OpenAI):
             is_chat_model=self.is_chat_model,
             is_function_calling_model=self.is_function_calling_model,
             model_name=self.model,
+            system_role=self.system_role
         )
 
     @property
