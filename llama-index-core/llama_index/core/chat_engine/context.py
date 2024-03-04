@@ -205,6 +205,14 @@ class ContextChatEngine(BaseChatEngine):
             initial_token_count=initial_token_count
         )
 
+        if len(all_messages) > 0:
+            if all_messages[0].role == MessageRole.USER and all_messages[1].role == MessageRole.USER:
+                new_fused_message = ChatMessage(
+                    content=all_messages[0].content + "\n\n" + all_messages[1].content,
+                    role=MessageRole.USER,
+                )
+                all_messages = [new_fused_message] + all_messages[2:]
+
         chat_response = StreamingAgentChatResponse(
             chat_stream=self._llm.stream_chat(all_messages),
             sources=[
