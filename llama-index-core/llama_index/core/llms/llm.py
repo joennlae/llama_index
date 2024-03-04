@@ -198,18 +198,7 @@ class LLM(BaseLLM):
         messages = prompt.format_messages(llm=self, **prompt_args)
         if self.output_parser is not None:
             messages = self.output_parser.format_messages(messages)
-        extended_messages = self._extend_messages(messages)
-        # make it hacky mistral compatible
-        new_messages = []
-        current_role = MessageRole.USER
-        # go through messages and alternate between user/assistant/user/assistant
-        for message in extended_messages:
-            new_messages.append(ChatMessage(role=current_role, content=message.content))
-            if current_role == MessageRole.USER:
-                current_role = MessageRole.ASSISTANT
-            else:
-                current_role = MessageRole.USER
-        return new_messages
+        return self._extend_messages(messages)
 
     def structured_predict(
         self,
